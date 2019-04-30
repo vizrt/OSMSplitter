@@ -1,0 +1,4 @@
+{
+    "MajorRoads.shp":"select geometry, osm_id, highway as type, coalesce(name_en, int_name, name) as name from lines where highway in ('motorway', 'primary', 'motorway_link', 'primary_link', 'trunk', 'trunk_link', 'secondary', 'secondary_link', 'tertiary')",
+    "WaterWays.shp":"select geometry, osm_id, coalesce(name_en, int_name, name) as name, waterway as type from lines where waterway is not null"
+}
