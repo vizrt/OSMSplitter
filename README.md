@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.com/vizrt/OSMSplitter.svg?branch=master)](https://travis-ci.com/vizrt/OSMSplitter)
+
 # VizOSMSplitter
 Splits OSM PBF files into subregions
 
