@@ -1,7 +1,8 @@
+sudo: required
 language: python
 
 services:
   - docker
 
-before_install:
+script:
   - docker build -t countrysplitter:v1 . 
