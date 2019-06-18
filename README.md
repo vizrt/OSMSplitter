@@ -1,7 +1,9 @@
 [![Build Status](https://travis-ci.com/vizrt/OSMSplitter.svg?branch=master)](https://travis-ci.com/vizrt/OSMSplitter)
 
 # VizOSMSplitter
-Splits OSM PBF files into subregions
+Splits OSM PBF files into smaller files, using subregions.
+The user can provide max-filesize of output files, then the script will try to output folders containg files of the given size for the input pbf file.
+It's also possible to create shapefiles using this script, where the user can provide a list of desired output shapefile names, along with the sqlite queries necessary to extract the content from the PBFs. 
 
 Recommended requirements:   
 -Python 3.6+   
