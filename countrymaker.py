@@ -467,6 +467,7 @@ if __name__ == '__main__':
     shapefile_queries = Path(args.shplist).read_text()
     shapefilecategories.append(json.loads(shapefile_queries))
     working_dir = Path(args.workingdir)
+    osmconffile = osmconffile.resolve()
     os.chdir(working_dir)
 
     if not planetfile.is_file():
