@@ -455,7 +455,7 @@ def clip_region_coastlines(land, water):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Split the planet file')
     parser.add_argument('--planet-source', dest='sourcefile', default='planet-latest.osm.pbf', help='Path to the planet file you wish to split')
-    parser.add_argument('--split-treshold', dest='threshold', default='150000000', help='Maximum size of pbf files (in bytes) after split')
+    parser.add_argument('--split-treshold', dest='threshold', type=int, default='150000000', help='Maximum size of pbf files (in bytes) after split')
     parser.add_argument('--overpass-server', dest='overpass', default='https://overpass-api.de/api/interpreter', help='Overpass server to use, should have as high usage limit as possible')
     parser.add_argument('--shapefile-queries', dest='shplist', default='shapefiles.json', help='a file containing all desired output shapefiles with sqlite queries, given in json format')
     parser.add_argument('--generate-shapefiles', dest='shapefile_creation', default='no', help='set to yes if you want to create shapefiles')
