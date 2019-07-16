@@ -10,4 +10,4 @@ ENV LANG C.UTF-8
 WORKDIR /app
 COPY . /app
 RUN pip3 install -r requirements.txt
-CMD ["python3", "countrymaker.py", "--workingdir", "planet"]
+ENTRYPOINT ["python3", "countrymaker.py", "--workingdir", "planet"]
