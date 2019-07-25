@@ -464,11 +464,11 @@ if __name__ == '__main__':
     planetfile = Path(args.sourcefile)
     threshold = args.threshold
     overpassurl = args.overpass
-    shapefile_queries = Path(args.shplist).read_text()
-    shapefilecategories.update(json.loads(shapefile_queries))
     working_dir = Path(args.workingdir)
     osmconffile = osmconffile.resolve()
     os.chdir(working_dir)
+    shapefile_queries = Path(args.shplist).read_text()
+    shapefilecategories.update(json.loads(shapefile_queries))
 
     if not planetfile.is_file():
         raise RuntimeError(f"{planetfile.resolve()} is required. You may pass a different path as an argument to this script.")
