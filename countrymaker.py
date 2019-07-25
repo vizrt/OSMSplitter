@@ -59,9 +59,9 @@ sub_region_query = """<osm-script>
 </osm-script>"""
 
 # SQL Queries which extract relevant parts of a pbf into shapefiles, based on the grouping ESRIpackager expects
-shapefilecategories = [
-     ["Admins.shp","select geometry, osm_id, osm_way_id, admin_level as fclass, coalesce(name_en, int_name, name) as name from multipolygons where admin_level is not null and boundary='administrative'"]
-]
+shapefilecategories = {
+     "Admins.shp": "select geometry, osm_id, osm_way_id, admin_level as fclass, coalesce(name_en, int_name, name) as name from multipolygons where admin_level is not null and boundary='administrative'"
+}
 
 filename_invalid_characters = re.compile(r'[\x00-\x1f/<>:"\\|?*]')  # Invalid on Windows and/or Linux
 filename_invalid = re.compile(r'^(?:CON|PRN|AUX|NUL|COM\d|LPT\d)(?=\.|$)', re.IGNORECASE)  # Invalid on Windows
@@ -465,7 +465,7 @@ if __name__ == '__main__':
     threshold = args.threshold
     overpassurl = args.overpass
     shapefile_queries = Path(args.shplist).read_text()
-    shapefilecategories.append(json.loads(shapefile_queries))
+    shapefilecategories.update(json.loads(shapefile_queries))
     working_dir = Path(args.workingdir)
     osmconffile = osmconffile.resolve()
     os.chdir(working_dir)
