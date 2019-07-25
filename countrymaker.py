@@ -305,7 +305,7 @@ def toshapefile(input, output):
         return
     try:
         os.makedirs(output)
-        for (category, query) in shapefilecategories:
+        for (category, query) in shapefilecategories.items():
             print(f"category: {category},  query: {query}, from input: {input} to output: {output}")
             run_external_program(
                 "ogr2ogr",
