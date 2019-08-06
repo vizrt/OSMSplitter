@@ -236,7 +236,7 @@ def osmium_extracts(extractsdir, osmfile):
         raise ValueError(f"{extractsdir} is not a directory.")
     if not osmfile.is_file():
         raise ValueError(f"{osmfile} does not exist.")
-    extractfiles = [entry for entry in extractsdir.iterdir() if entry.is_file()]
+    extractfiles = sorted([entry for entry in extractsdir.iterdir() if entry.is_file()])
     for extractfile in extractfiles:
         if not extract_required(extractfile):
             continue
@@ -390,7 +390,7 @@ def produce_region_pbf(regionpath, regionNameToIdMap, admin_level, blacklist, th
         return
     get_full_regions_from_xml(region_relations_file, regionRelations, regionRelationFolder)
     extract(regionExtractFolder, regionRelationFolder, region_cutouts_target_dir, regionpath, blacklist)
-    for subregion_file in [entry for entry in region_cutouts_target_dir.iterdir() if entry.is_file()]:
+    for subregion_file in sorted([entry for entry in region_cutouts_target_dir.iterdir() if entry.is_file()]):
         if subregion_file.stat().st_size >= threshold:
             nameToIdMap = getNameToIdMap(region_relations_file)
             produce_region_pbf(subregion_file, nameToIdMap, admin_level + 2, blacklist, threshold)
@@ -475,7 +475,7 @@ if __name__ == '__main__':
     blacklist = blacklistfile.is_file() and set(slurp(blacklistfile).split('\n'))
     produce_country_pbfs(blacklist, planetfile)
     nameToIdMap = getNameToIdMap(countryosmfile)
-    for relationfile in [entry for entry in basepaths['cutout'].iterdir() if entry.is_file()]:
+    for relationfile in sorted([entry for entry in basepaths['cutout'].iterdir() if entry.is_file()]):
         produce_region_pbf(relationfile, nameToIdMap, 4, blacklist, threshold)
 
     if args.shapefile_creation != 'yes':
