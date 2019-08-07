@@ -12,6 +12,7 @@ import sys
 import re
 import subprocess
 import shutil
+import asyncio
 
 overpassurl = "https://overpass-api.de/api/interpreter"
 countryosmfile = Path("countries.osm")
@@ -208,6 +209,14 @@ def extract_required(fname):
 
 def run_external_program(*args, onerr=None, quiet=False):
     p = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding='UTF-8')
+    return _process_result(p)
+
+async def run_external_program_async(*args, onerr=None, quiet=False):
+    p = await asyncio.create_subprocess_exec(args[0], *args[1:], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8')
+    await p.wait()
+    return _process_result(p)
+
+def _process_result(process):
     if p.returncode or not quiet:
         print(p.stdout)
     if p.returncode:
@@ -300,14 +309,14 @@ def create_extraction_json(extractsdir, relationsfolder, cutoutsdir, blacklist):
             json.dump(data, json_file)
 
 # Convert pbf to shapefiles
-def toshapefile(input, output):
+async def toshapefile_async(input, output):
     if output.is_dir():
         return
     try:
         os.makedirs(output)
         for (category, query) in shapefilecategories.items():
             print(f"category: {category},  query: {query}, from input: {input} to output: {output}")
-            run_external_program(
+            await run_external_program_async(
                 "ogr2ogr",
                 "-oo", f"CONFIG_FILE={osmconffile}",
                 "-lco",
@@ -395,10 +404,12 @@ def produce_region_pbf(regionpath, regionNameToIdMap, admin_level, blacklist, th
             nameToIdMap = getNameToIdMap(region_relations_file)
             produce_region_pbf(subregion_file, nameToIdMap, admin_level + 2, blacklist, threshold)
 
-def cutouts_to_shapefiles():
+async def cutouts_to_shapefiles_async():
+	processes = []
     for multipath in Multipath.cutoutfiles():
         if not multipath.cutouthassubfolder():
-            toshapefile(multipath.cutout(), multipath.shapefolder())
+            processes.append(toshapefile_async(multipath.cutout(), multipath.shapefolder()))
+    await asyncio.gather(*processes)
 
 def generate_coastlines(planetfile, targetdir):
     def handler(code, text):
@@ -480,6 +491,6 @@ if __name__ == '__main__':
 
     if args.shapefile_creation != 'yes':
         quit()
-    cutouts_to_shapefiles()
+    asyncio.run(cutouts_to_shapefiles_async())
     (land, water) = generate_coastlines(planetfile, coastlinefolder)
     clip_region_coastlines(land, water)
