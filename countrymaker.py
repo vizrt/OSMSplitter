@@ -78,12 +78,12 @@ class Multipath:
     @classmethod
     def shapefolders(class_):
         basepath = basepaths['shape']
-        for path in basepath.glob('**/Admins.shp'):
+        for path in sorted(basepath.glob('**/Admins.shp')):
             yield class_(path.relative_to(basepath).parent)
     @classmethod
     def cutoutfiles(class_):
         basepath = basepaths['cutout']
-        for path in basepath.glob('**/*.osm.pbf'):
+        for path in sorted(basepath.glob('**/*.osm.pbf')):
             rel_str = stripext(path.relative_to(basepath), '.osm.pbf')
             yield class_(Path(rel_str))
     def __init__(self, relpath):
