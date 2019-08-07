@@ -11,7 +11,7 @@ Recommended requirements:
 
 Download planet-latest.osm.pbf from https://planet.openstreetmap.org/ and place it in a new folder.   
 Navigate to the newly created folder and run   
-"docker run -it --mount src="$(pwd)",dst=/app/planet,type=bind -i -t hauhav/osmsplitter"   
+"docker run -it --mount src="$(pwd)",dst=/app/planet,type=bind -i -t vizrt/osmsplitter"   
 The output files should appear in the newly created folder.
 
 
