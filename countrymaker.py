@@ -405,7 +405,7 @@ def produce_region_pbf(regionpath, regionNameToIdMap, admin_level, blacklist, th
             produce_region_pbf(subregion_file, nameToIdMap, admin_level + 2, blacklist, threshold)
 
 async def cutouts_to_shapefiles_async():
-	processes = []
+    processes = []
     for multipath in Multipath.cutoutfiles():
         if not multipath.cutouthassubfolder():
             processes.append(toshapefile_async(multipath.cutout(), multipath.shapefolder()))
