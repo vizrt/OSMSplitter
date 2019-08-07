@@ -216,7 +216,7 @@ async def run_external_program_async(*args, onerr=None, quiet=False):
     await p.wait()
     return _process_result(p)
 
-def _process_result(process):
+def _process_result(p):
     if p.returncode or not quiet:
         print(p.stdout)
     if p.returncode:
