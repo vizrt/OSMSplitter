@@ -209,14 +209,14 @@ def extract_required(fname):
 
 def run_external_program(*args, onerr=None, quiet=False):
     p = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding='UTF-8')
-    return _process_result(p)
+    return _process_result(p, onerr, quiet)
 
 async def run_external_program_async(*args, onerr=None, quiet=False):
     p = await asyncio.create_subprocess_exec(args[0], *args[1:], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8')
     await p.wait()
-    return _process_result(p)
+    return _process_result(p, onerr, quiet)
 
-def _process_result(p):
+def _process_result(p, onerr, quiet):
     if p.returncode or not quiet:
         print(p.stdout)
     if p.returncode:
