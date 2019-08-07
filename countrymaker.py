@@ -324,8 +324,8 @@ async def toshapefile_async(input, output):
                 "-dialect", "SQLITE",
                 "-overwrite",
                 "-f", "ESRI Shapefile",
-                f"{output}/{category}",
-                input,
+                str(output / category),
+                str(input),
                 "-progress",
                 "-sql", query)
     except KeyboardInterrupt as e:
