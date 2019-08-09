@@ -1,4 +1,3 @@
-from urllib.parse import urlencode
 import argparse
 import requests
 import xml.etree.ElementTree as ET
@@ -11,7 +10,6 @@ import os
 import sys
 import re
 import subprocess
-import shutil
 import asyncio
 
 overpassurl = "https://overpass-api.de/api/interpreter"
@@ -132,7 +130,7 @@ def slurp(fname):
 def make_overpass_request(url, body):
     print(body)
     print(f'Making overpass request to {url}')
-    for i in range(3):
+    for _ in range(3):
         response = requests.post(url=overpassurl, data=body)
         if response.status_code != 429:  # 429: Too many requests
             break
@@ -163,13 +161,13 @@ def get_subregion_relations(superRelationId, admin_level):
     return my_sub_region
 
 # Get an .osm xml file from overpass api, containing all relevant information to extract region using osmium
-def get_full_region(id, filename, relationsFolder):
+def get_full_region(id_, filename, relationsFolder):
     filepath = relationsFolder / filename
     if filepath.exists():
         return
     os.makedirs(relationsFolder, exist_ok=True)
-    print(f"Fetching full region for id: {id}, and writing to: {filepath}")
-    return get_relations(overpassurl, full_region.format(refid=id), filepath)
+    print(f"Fetching full region for id: {id_}, and writing to: {filepath}")
+    return get_relations(overpassurl, full_region.format(refid=id_), filepath)
 
 def getTag(element, tag):
     targetElem = element.find(f"./tag/[@k='{tag}']")
@@ -180,18 +178,18 @@ def getTag(element, tag):
 def get_full_regions_from_xml(source, relations, relationsFolder):
     mapping = []
     for relation in relations:
-        id = relation.get("id")
+        id_ = relation.get("id")
         name = getTag(relation, 'name')
         englishName = getTag(relation, 'name:en')
         if englishName or name:
             filename = escape_file_name((englishName or name) + '.osm')  # Prefer english name
         else:
             filename = None
-        mapping.append([id, filename, name, englishName])
+        mapping.append([id_, filename, name, englishName])
         if name is None:
-            print(f"Warning: In XML from {source}, {id} has no name")
+            print(f"Warning: In XML from {source}, {id_} has no name")
             continue
-        get_full_region(id, filename, relationsFolder)
+        get_full_region(id_, filename, relationsFolder)
     os.makedirs(relationsFolder, exist_ok=True)
     mapfile = relationsFolder / relationsmapfile
     with open(mapfile, 'w') as fh:
@@ -378,6 +376,8 @@ def get_region_name_from_relative_path(path):
     raise KeyError(f"{expected_fn} not in {mapfile}")
 
 def produce_region_pbf(regionpath, regionNameToIdMap, admin_level, blacklist, threshold):
+    if regionpath.stat().st_size < threshold:
+        return
     relpath_from_countrycutouts = regionpath.relative_to(basepaths['cutout'])
     relpath_dir_name = relpath_from_countrycutouts.parent
     regionfilename = stripext(regionpath.name, '.osm.pbf')
@@ -400,9 +400,8 @@ def produce_region_pbf(regionpath, regionNameToIdMap, admin_level, blacklist, th
     get_full_regions_from_xml(region_relations_file, regionRelations, regionRelationFolder)
     extract(regionExtractFolder, regionRelationFolder, region_cutouts_target_dir, regionpath, blacklist)
     for subregion_file in sorted([entry for entry in region_cutouts_target_dir.iterdir() if entry.is_file()]):
-        if subregion_file.stat().st_size >= threshold:
-            nameToIdMap = getNameToIdMap(region_relations_file)
-            produce_region_pbf(subregion_file, nameToIdMap, admin_level + 2, blacklist, threshold)
+        nameToIdMap = getNameToIdMap(region_relations_file)
+        produce_region_pbf(subregion_file, nameToIdMap, admin_level + 2, blacklist, threshold)
 
 async def cutouts_to_shapefiles_async():
     processes = []
