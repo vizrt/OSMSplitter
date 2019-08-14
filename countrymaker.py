@@ -1,4 +1,3 @@
-from urllib.parse import urlencode
 import argparse
 import requests
 import xml.etree.ElementTree as ET
@@ -11,7 +10,7 @@ import os
 import sys
 import re
 import subprocess
-import shutil
+import asyncio
 
 overpassurl = "https://overpass-api.de/api/interpreter"
 countryosmfile = Path("countries.osm")
@@ -60,7 +59,7 @@ sub_region_query = """<osm-script>
 
 # SQL Queries which extract relevant parts of a pbf into shapefiles, based on the grouping ESRIpackager expects
 shapefilecategories = {
-     "Admins.shp": "select geometry, osm_id, osm_way_id, admin_level as fclass, coalesce(name_en, int_name, name) as name from multipolygons where admin_level is not null and boundary='administrative'"
+    "Admins.shp": "select geometry, osm_id, osm_way_id, admin_level as fclass, coalesce(name_en, int_name, name) as name from multipolygons where admin_level is not null and boundary='administrative'"
 }
 
 filename_invalid_characters = re.compile(r'[\x00-\x1f/<>:"\\|?*]')  # Invalid on Windows and/or Linux
@@ -131,7 +130,7 @@ def slurp(fname):
 def make_overpass_request(url, body):
     print(body)
     print(f'Making overpass request to {url}')
-    for i in range(3):
+    for _ in range(3):
         response = requests.post(url=overpassurl, data=body)
         if response.status_code != 429:  # 429: Too many requests
             break
@@ -149,7 +148,7 @@ def get_relations(url, body, cachefile):
         ensure_dir(cachefile.parent)
         with open(cachefile, "w", encoding='UTF-8') as fh:
             fh.write(xml)
-    document =  ET.fromstring(xml)
+    document = ET.fromstring(xml)
     allCountryRelations = document.findall("relation")
     print(f'Returning {len(allCountryRelations)} subregions for {cachefile}') 
     return allCountryRelations
@@ -162,13 +161,13 @@ def get_subregion_relations(superRelationId, admin_level):
     return my_sub_region
 
 # Get an .osm xml file from overpass api, containing all relevant information to extract region using osmium
-def get_full_region(id, filename, relationsFolder):
+def get_full_region(id_, filename, relationsFolder):
     filepath = relationsFolder / filename
     if filepath.exists():
         return
     os.makedirs(relationsFolder, exist_ok=True)
-    print(f"Fetching full region for id: {id}, and writing to: {filepath}")
-    return get_relations(overpassurl, full_region.format(refid=id), filepath)
+    print(f"Fetching full region for id: {id_}, and writing to: {filepath}")
+    return get_relations(overpassurl, full_region.format(refid=id_), filepath)
 
 def getTag(element, tag):
     targetElem = element.find(f"./tag/[@k='{tag}']")
@@ -179,18 +178,18 @@ def getTag(element, tag):
 def get_full_regions_from_xml(source, relations, relationsFolder):
     mapping = []
     for relation in relations:
-        id = relation.get("id")
+        id_ = relation.get("id")
         name = getTag(relation, 'name')
-        englishName =  getTag(relation, 'name:en')
+        englishName = getTag(relation, 'name:en')
         if englishName or name:
             filename = escape_file_name((englishName or name) + '.osm')  # Prefer english name
         else:
             filename = None
-        mapping.append([id, filename, name, englishName])
+        mapping.append([id_, filename, name, englishName])
         if name is None:
-            print(f"Warning: In XML from {source}, {id} has no name")
+            print(f"Warning: In XML from {source}, {id_} has no name")
             continue
-        get_full_region(id, filename, relationsFolder)
+        get_full_region(id_, filename, relationsFolder)
     os.makedirs(relationsFolder, exist_ok=True)
     mapfile = relationsFolder / relationsmapfile
     with open(mapfile, 'w') as fh:
@@ -208,6 +207,14 @@ def extract_required(fname):
 
 def run_external_program(*args, onerr=None, quiet=False):
     p = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding='UTF-8')
+    return _process_result(p, onerr, quiet)
+
+async def run_external_program_async(*args, onerr=None, quiet=False):
+    p = await asyncio.create_subprocess_exec(args[0], *args[1:], stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='UTF-8')
+    await p.wait()
+    return _process_result(p, onerr, quiet)
+
+def _process_result(p, onerr, quiet):
     if p.returncode or not quiet:
         print(p.stdout)
     if p.returncode:
@@ -225,7 +232,7 @@ def osmium_extracts(extractsdir, osmfile):
         if not m:
             print('Could not auto-add to blacklist because the osmium_error regex didn\'t match.')
             return False
-        abspath =  Path(m['filepath'])
+        abspath = Path(m['filepath'])
         relpath = abspath.relative_to(basepaths['relation'].resolve())
         with open(blacklistfile, 'a', encoding='UTF-8') as fh:
             fh.write(str(relpath) + '\n')
@@ -300,14 +307,14 @@ def create_extraction_json(extractsdir, relationsfolder, cutoutsdir, blacklist):
             json.dump(data, json_file)
 
 # Convert pbf to shapefiles
-def toshapefile(input, output):
+async def toshapefile_async(input_, output):
     if output.is_dir():
         return
     try:
         os.makedirs(output)
         for (category, query) in shapefilecategories.items():
-            print(f"category: {category},  query: {query}, from input: {input} to output: {output}")
-            run_external_program(
+            print(f"category: {category},  query: {query}, from input: {input_} to output: {output}")
+            await run_external_program_async(
                 "ogr2ogr",
                 "-oo", f"CONFIG_FILE={osmconffile}",
                 "-lco",
@@ -315,8 +322,8 @@ def toshapefile(input, output):
                 "-dialect", "SQLITE",
                 "-overwrite",
                 "-f", "ESRI Shapefile",
-                f"{output}/{category}",
-                input,
+                str(output / category),
+                str(input_),
                 "-progress",
                 "-sql", query)
     except KeyboardInterrupt as e:
@@ -338,7 +345,7 @@ def getNameToIdMap(osmFile):
     for relation in relations:
         id = relation.get("id")
         name = getTag(relation, 'name')
-        englishName =  getTag(relation, 'name:en')
+        englishName = getTag(relation, 'name:en')
         if name is None:
             print(f"Warning: In {osmFile}, {id} ({englishName}) has no name")
             continue
@@ -369,6 +376,8 @@ def get_region_name_from_relative_path(path):
     raise KeyError(f"{expected_fn} not in {mapfile}")
 
 def produce_region_pbf(regionpath, regionNameToIdMap, admin_level, blacklist, threshold):
+    if regionpath.stat().st_size < threshold:
+        return
     relpath_from_countrycutouts = regionpath.relative_to(basepaths['cutout'])
     relpath_dir_name = relpath_from_countrycutouts.parent
     regionfilename = stripext(regionpath.name, '.osm.pbf')
@@ -391,14 +400,25 @@ def produce_region_pbf(regionpath, regionNameToIdMap, admin_level, blacklist, th
     get_full_regions_from_xml(region_relations_file, regionRelations, regionRelationFolder)
     extract(regionExtractFolder, regionRelationFolder, region_cutouts_target_dir, regionpath, blacklist)
     for subregion_file in sorted([entry for entry in region_cutouts_target_dir.iterdir() if entry.is_file()]):
-        if subregion_file.stat().st_size >= threshold:
-            nameToIdMap = getNameToIdMap(region_relations_file)
-            produce_region_pbf(subregion_file, nameToIdMap, admin_level + 2, blacklist, threshold)
+        nameToIdMap = getNameToIdMap(region_relations_file)
+        produce_region_pbf(subregion_file, nameToIdMap, admin_level + 2, blacklist, threshold)
 
-def cutouts_to_shapefiles():
+async def cutouts_to_shapefiles_async():
+    processes = []
     for multipath in Multipath.cutoutfiles():
         if not multipath.cutouthassubfolder():
-            toshapefile(multipath.cutout(), multipath.shapefolder())
+            processes.append(toshapefile_async(multipath.cutout(), multipath.shapefolder()))
+    threads = os.cpu_count()
+    for chunk in _chunked(processes, threads):
+        gatherer = asyncio.gather(*chunk)
+        try:
+            await gatherer
+        except:
+            gatherer.cancel()
+            raise
+
+def _chunked(list_, chunk_size):
+    return [list_[i:i + chunk_size] for i in range(0, len(list_), chunk_size)]
 
 def generate_coastlines(planetfile, targetdir):
     def handler(code, text):
@@ -424,7 +444,7 @@ def get_extent(multipath, padding=None):
     retcode, stdout, stderr = run_external_program('ogrinfo', '-ro', '-so', str(multipath.adminshape()), 'Admins', quiet=True)
     match = osminfo_extent.search(stdout)
     if not match:
-        raise RuntimeError(f'No extent for {shapefile}')
+        raise RuntimeError(f'No extent for {multipath.adminshape()}')
     xmin, ymin, xmax, ymax = match.group('xmin', 'ymin', 'xmax', 'ymax')
     if padding is not None:
         def pad(value, amount):
@@ -480,6 +500,6 @@ if __name__ == '__main__':
 
     if args.shapefile_creation != 'yes':
         quit()
-    cutouts_to_shapefiles()
+    asyncio.run(cutouts_to_shapefiles_async())
     (land, water) = generate_coastlines(planetfile, coastlinefolder)
     clip_region_coastlines(land, water)
